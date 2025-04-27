@@ -1,0 +1,16 @@
+{
+  "name": "ai-therapist-backend",
+  "version": "0.1.0",
+  "description": "FastAPI backend for AI Therapist application",
+  "main": "index.js",
+  "scripts": {
+    "setup": "pip install -r requirements.txt",
+    "dev": "uvicorn main:app --reload",
+    "start": "uvicorn main:app"
+  },
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
