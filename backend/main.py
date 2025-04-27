@@ -4,7 +4,7 @@ from pydub import AudioSegment
 import os
 import tempfile
 import whisper
-from transformers import pipeline
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, Conversation
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import torch
 import json
@@ -29,7 +29,7 @@ app.add_middleware(
 # Initialize models
 @app.on_event("startup")
 async def startup_event():
-    global whisper_model, sentiment_analyzer, text_generator
+    global whisper_model, sentiment_analyzer, tokenizer, model, text_generator
     
     # Initialize Whisper model for STT
     logger.info("Loading Whisper model...")
@@ -39,17 +39,25 @@ async def startup_event():
     logger.info("Loading sentiment analyzer...")
     sentiment_analyzer = SentimentIntensityAnalyzer()
     
-    # Initialize text generation model (using smaller model for demo)
-    logger.info("Loading text generator...")
+    # Initialize DialoGPT for better conversational abilities
+    logger.info("Loading DialoGPT model...")
     try:
+        # Using DialoGPT-medium for better conversation quality
+        model_name = "microsoft/DialoGPT-medium"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        
+        # Create a text generation pipeline
         text_generator = pipeline(
             "text-generation",
-            model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            torch_dtype=torch.float16,
-            device_map="auto"
+            model=model,
+            tokenizer=tokenizer,
+            device_map="auto" if torch.cuda.is_available() else "cpu",
+            max_length=1000
         )
+        logger.info("DialoGPT model loaded successfully")
     except Exception as e:
-        logger.error(f"Error loading text generator: {e}")
+        logger.error(f"Error loading DialoGPT model: {e}")
         text_generator = None
 
 @app.get("/")
@@ -104,26 +112,32 @@ async def generate_response(
     Generate therapeutic response based on input text, sentiment, and conversation history
     """
     try:
-        # Basic prompt engineering based on sentiment
+        # Parse sentiment and conversation history
         sentiment_data = json.loads(sentiment) if sentiment else None
         conversation_data = json.loads(conversation_history) if conversation_history else []
         
-        system_prompt = """You are Tharav, a helpful and compassionate AI therapist. You can handle both therapeutic conversations and everyday topics.
+        # Enhanced system prompt with more specific therapeutic guidelines
+        system_prompt = """You are Tharav, a compassionate AI therapist with expertise in cognitive behavioral therapy, mindfulness, and supportive counseling.
+
+When responding to users:
+1) First acknowledge their feelings and experiences
+2) Use reflective listening techniques to show understanding
+3) Ask thoughtful open-ended questions to explore their situation deeper
+4) Offer one practical technique or insight that might help
+5) Maintain a warm, empathetic tone without being overly clinical
+
+Remember that you can discuss both therapeutic topics and everyday subjects with equal empathy and engagement. Be conversational but insightful."""
         
-For therapeutic topics, respond with empathy, support, and evidence-based therapeutic techniques.
-For everyday casual topics, be friendly, natural, and engaging like a supportive friend.
-Always maintain a conversational tone and ask relevant follow-up questions.
-Keep responses concise but meaningful."""
-        
+        # Adapt prompt based on sentiment
         if sentiment_data:
             if sentiment_data.get("compound", 0) < -0.5:
-                system_prompt += " The user seems to be feeling very negative. Offer extra comfort and support."
+                system_prompt += " The user appears to be experiencing significant distress. Respond with extra warmth and support, while gently offering resources or coping strategies."
             elif sentiment_data.get("compound", 0) < -0.1:
-                system_prompt += " The user seems to be feeling somewhat negative. Be gentle and supportive."
+                system_prompt += " The user seems to be feeling somewhat negative. Show empathy while offering gentle encouragement."
             elif sentiment_data.get("compound", 0) > 0.5:
-                system_prompt += " The user seems to be feeling very positive. Affirm their positive feelings."
+                system_prompt += " The user seems to be in a positive state. Reinforce this positivity while remaining authentic and engaged."
         
-        # Check for crisis keywords
+        # Check for crisis keywords (safety feature)
         crisis_keywords = ["suicide", "kill myself", "want to die", "end my life", "hurt myself"]
         if any(keyword in text.lower() for keyword in crisis_keywords):
             return {
@@ -133,59 +147,69 @@ Keep responses concise but meaningful."""
         
         # Generate response using the model
         if text_generator:
-            # Build conversation context from history
-            prompt = f"{system_prompt}\n\n"
+            # Build the conversation prompt with detailed history
+            full_prompt = f"{system_prompt}\n\n"
             
-            # Add conversation history if available
+            # Format conversation history for the model
+            # Limited to last 5 exchanges to avoid token overflow
             if conversation_data and len(conversation_data) > 0:
-                for entry in conversation_data:
+                # Take last 5 exchanges at most to avoid context length issues
+                recent_history = conversation_data[-5:] if len(conversation_data) > 5 else conversation_data
+                for entry in recent_history:
                     if "user" in entry:
-                        prompt += f"User: {entry['user']}\n"
+                        full_prompt += f"User: {entry['user']}\n"
                     if "ai" in entry:
-                        prompt += f"Tharav: {entry['ai']}\n"
+                        full_prompt += f"Tharav: {entry['ai']}\n"
             
-            # Add current user message
-            prompt += f"User: {text}\n\nTharav:"
+            # Add current query
+            full_prompt += f"User: {text}\nTharav:"
             
-            # Generate response with appropriate parameters for conversational flow
+            # Generate the response with improved parameters for more diverse responses
             response = text_generator(
-                prompt, 
-                max_length=300, 
-                do_sample=True, 
-                temperature=0.7,
-                top_p=0.9,
-                repetition_penalty=1.2
+                full_prompt,
+                max_length=500,
+                do_sample=True,
+                temperature=0.8,
+                top_p=0.92,
+                top_k=50,
+                repetition_penalty=1.25,
+                num_return_sequences=1
             )
+            
             generated_text = response[0]["generated_text"]
             
-            # Extract just the assistant's response
-            ai_response = generated_text.split("Tharav:")[1].strip() if "Tharav:" in generated_text else generated_text
+            # Extract just the assistant's response - everything after the last "Tharav:"
+            response_parts = generated_text.split("Tharav:")
+            ai_response = response_parts[-1].strip()
             
-            # Clean up any trailing User: prompt that might have been generated
+            # Clean up response - remove any trailing User: prompt or additional conversation
             if "User:" in ai_response:
                 ai_response = ai_response.split("User:")[0].strip()
+                
+            # Remove any self-references from the model (sometimes they say "As an AI..." etc)
+            ai_response = ai_response.replace("As an AI", "As a therapist")
+            ai_response = ai_response.replace("as an AI", "as a therapist")
             
             return {
                 "response": ai_response,
                 "crisis_mode": False
             }
         else:
-            # Fallback responses if model fails to load
-            if any(keyword in text.lower() for keyword in ["sad", "unhappy", "depressed", "miserable"]):
-                return {
-                    "response": "I'm sorry to hear you're feeling this way. Remember that emotions are temporary and it's okay to feel sad sometimes. Would you like to talk more about what's bothering you?",
-                    "crisis_mode": False
-                }
-            elif any(keyword in text.lower() for keyword in ["anxious", "worried", "stress", "panic"]):
-                return {
-                    "response": "It sounds like you're experiencing some anxiety. Taking deep breaths and focusing on the present moment might help. Would you like to try a brief relaxation exercise?",
-                    "crisis_mode": False
-                }
-            else:
-                return {
-                    "response": "Thank you for sharing that with me. I'm here to listen and support you. Could you tell me more about how you're feeling?",
-                    "crisis_mode": False
-                }
+            # Enhanced fallback responses if model fails to load
+            responses = [
+                "I understand what you're saying. Could you tell me more about how that situation affected you?",
+                "That sounds challenging. How have you been coping with these feelings?",
+                "I appreciate you sharing that with me. What do you think would be a helpful next step?",
+                "Your experience matters. Could you share more about what you're hoping to achieve?",
+                "I'm here to support you through this. What would feel most helpful right now?",
+                "That's really insightful. How long have you been feeling this way?",
+                "I'm listening and I care about what you're going through. What else is on your mind?"
+            ]
+            import random
+            return {
+                "response": random.choice(responses),
+                "crisis_mode": False
+            }
     
     except Exception as e:
         logger.error(f"Error generating response: {e}")
