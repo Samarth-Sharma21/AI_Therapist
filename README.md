@@ -16,7 +16,6 @@ An AI-powered therapeutic companion that uses speech recognition, sentiment anal
 ### Prerequisites
 
 - Node.js (v14+)
-- Python (v3.8+)
 - NPM or Yarn
 
 ### Project Structure
@@ -28,12 +27,9 @@ ai-therapist/
 │   └── src/
 │       ├── components/  # React components
 │       ├── pages/       # Page components
-│       ├── services/    # API services
+│       ├── services/    # API services (using OpenRouter directly)
 │       └── App.tsx      # Main application
-│
-└── backend/             # FastAPI backend
-    ├── main.py          # FastAPI application
-    └── requirements.txt # Python dependencies
+└── .env                 # OpenRouter API configuration
 ```
 
 ## 📋 Installation & Setup
@@ -49,38 +45,10 @@ npm run setup
 This will automatically:
 
 1. Install root dependencies
-2. Set up the Python virtual environment and install backend dependencies
-3. Install frontend dependencies
+2. Install frontend dependencies
+3. Set up OpenRouter configuration
 
 ### Manual Setup
-
-#### Backend Setup
-
-1. Navigate to the backend directory:
-
-   ```bash
-   cd ai-therapist/backend
-   ```
-
-2. Create a virtual environment:
-
-   ```bash
-   # Windows
-   python -m venv venv
-   venv\Scripts\activate
-
-   # Linux/macOS
-   python -m venv venv
-   source venv/bin/activate
-   ```
-
-3. Install dependencies:
-
-   ```bash
-   npm run setup
-   # or manually with
-   # pip install -r requirements.txt
-   ```
 
 #### Frontend Setup
 
@@ -96,17 +64,25 @@ This will automatically:
    npm install
    ```
 
+3. Configure OpenRouter API:
+
+   ```bash
+   # Copy the .env file and add your OpenRouter API key
+   cp .env .env.local
+   # Edit .env.local and replace 'your-openrouter-api-key-here' with your actual API key
+   ```
+
 ## 🚀 Running the Application
 
-### Running Both Frontend and Backend
+### Running the Application
 
-To run the complete application (both frontend and backend):
+To start the application:
 
 ```bash
 npm run dev
 ```
 
-This will start both servers concurrently. The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:8000`.
+The application will be available at `http://localhost:5173`.
 
 ### Running Frontend Only
 
@@ -116,20 +92,25 @@ npm run frontend
 
 The frontend will be available at `http://localhost:5173`.
 
-### Running Backend Only
-
-```bash
-npm run backend
-```
-
-The API will be available at `http://localhost:8000`.
-
 ## 🧠 How It Works
 
-1. **Speech Recognition**: Uses OpenAI Whisper to convert your speech to text
-2. **Sentiment Analysis**: VADER sentiment analysis detects your emotional state
-3. **AI Response Generation**: TinyLlama generates appropriate, supportive responses
+1. **Direct AI Integration**: Uses OpenRouter API for advanced AI responses
+2. **Sentiment Analysis**: Simple keyword-based sentiment detection
+3. **AI Response Generation**: OpenAI GPT models generate appropriate, supportive responses
 4. **Beautiful UI**: Framer Motion provides a calming, animated interface
+
+## 🔧 OpenRouter Configuration
+
+The application now uses OpenRouter's API directly, eliminating the need for a backend server. To configure:
+
+1. Get your API key from [OpenRouter](https://openrouter.ai/keys)
+2. Copy the `.env` file to `.env.local`
+3. Add your API key to `.env.local`:
+   ```
+   VITE_OPENROUTER_API_KEY=your-actual-api-key-here
+   ```
+
+You can also customize the AI model by changing `VITE_OPENROUTER_MODEL` in the `.env` file.
 
 ## 📱 Pages
 

@@ -22,15 +22,7 @@ console.log(
 console.log(`${colors.yellow}Installing root dependencies...${colors.reset}`);
 execSync('npm install', { stdio: 'inherit' });
 
-// Install backend dependencies
-console.log(`\n${colors.yellow}Setting up backend...${colors.reset}`);
-const backendPath = path.join(__dirname, 'backend');
-if (fs.existsSync(backendPath)) {
-  execSync('npm run install:backend', { stdio: 'inherit' });
-} else {
-  console.error(`${colors.bright}Backend directory not found!${colors.reset}`);
-  process.exit(1);
-}
+// Backend removed - using OpenRouter directly from frontend
 
 // Install frontend-vite dependencies
 console.log(`\n${colors.yellow}Setting up frontend...${colors.reset}`);
@@ -43,10 +35,7 @@ if (fs.existsSync(frontendPath)) {
 }
 
 console.log(`\n${colors.bright}${colors.green}Setup complete!${colors.reset}`);
-console.log(`\nTo start the application in development mode, run:`);
+console.log(`\nTo start the application, run:`);
 console.log(`${colors.magenta}npm run dev${colors.reset}`);
-console.log(`\nThis will start both the frontend and backend servers.`);
-console.log(`\nTo start only the frontend, run:`);
-console.log(`${colors.magenta}npm run frontend${colors.reset}`);
-console.log(`\nTo start only the backend, run:`);
-console.log(`${colors.magenta}npm run backend${colors.reset}`);
+console.log(`\nThis will start the frontend application.`);
+console.log(`\nMake sure to set your OpenRouter API key in the .env file!`);

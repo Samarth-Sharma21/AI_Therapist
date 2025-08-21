@@ -4,10 +4,8 @@
   "description": "AI-powered therapeutic companion with speech recognition and sentiment analysis",
   "scripts": {
     "frontend": "cd frontend-vite && npm run dev",
-    "backend": "cd backend && npm run dev",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "dev": "npm run frontend",
     "setup": "node setup.js",
-    "install:backend": "cd backend && npm run setup",
     "install:frontend": "cd frontend-vite && npm install"
   },
   "dependencies": {

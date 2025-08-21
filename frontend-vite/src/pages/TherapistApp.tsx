@@ -8,7 +8,6 @@ import {
 } from 'framer-motion';
 import {
   transcribeAudio,
-  analyzeSentiment,
   generateResponse,
 } from '../services/api';
 import Footer from '../components/Footer';
@@ -226,14 +225,14 @@ const ChatContainer = styled.div`
 `;
 
 // Message components with different styles for user and AI
-const MessageContainer = styled.div<{ isUser: boolean }>`
+const MessageContainer = styled.div<{ $isUser: boolean }>`
   display: flex;
-  flex-direction: ${(props) => (props.isUser ? 'row-reverse' : 'row')};
+  flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
   align-items: flex-end;
   gap: 0.75rem;
 `;
 
-const Avatar = styled.div<{ isUser: boolean }>`
+const Avatar = styled.div<{ $isUser: boolean }>`
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -241,42 +240,42 @@ const Avatar = styled.div<{ isUser: boolean }>`
   align-items: center;
   justify-content: center;
   background-color: ${(props) =>
-    props.isUser ? 'var(--primary-light)' : 'var(--secondary-light)'};
+    props.$isUser ? 'var(--primary-light)' : 'var(--secondary-light)'};
   color: white;
   font-weight: 600;
   font-size: 14px;
 `;
 
-const MessageBubble = styled(motion.div)<{ isUser: boolean }>`
+const MessageBubble = styled(motion.div)<{ $isUser: boolean }>`
   padding: 1rem;
   border-radius: 18px;
   background-color: ${(props) =>
-    props.isUser ? 'var(--primary-color)' : 'var(--surface-color)'};
-  color: ${(props) => (props.isUser ? 'white' : 'var(--text-color)')};
+    props.$isUser ? 'var(--primary-color)' : 'var(--surface-color)'};
+  color: ${(props) => (props.$isUser ? 'white' : 'var(--text-color)')};
   max-width: 70%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid
-    ${(props) => (props.isUser ? 'transparent' : 'rgba(0, 0, 0, 0.05)')};
+    ${(props) => (props.$isUser ? 'transparent' : 'rgba(0, 0, 0, 0.05)')};
   position: relative;
 
   &:before {
     content: '';
     position: absolute;
     bottom: 12px;
-    ${(props) => (props.isUser ? 'right: -8px' : 'left: -8px')};
+    ${(props) => (props.$isUser ? 'right: -8px' : 'left: -8px')};
     width: 16px;
     height: 16px;
     background-color: ${(props) =>
-      props.isUser ? 'var(--primary-color)' : 'var(--surface-color)'};
+      props.$isUser ? 'var(--primary-color)' : 'var(--surface-color)'};
     clip-path: ${(props) =>
-      props.isUser
+      props.$isUser
         ? 'polygon(0 0, 0% 100%, 100% 100%)'
         : 'polygon(100% 0, 0% 100%, 100% 100%)'};
     border: ${(props) =>
-      props.isUser ? 'none' : '1px solid rgba(0, 0, 0, 0.05)'};
+      props.$isUser ? 'none' : '1px solid rgba(0, 0, 0, 0.05)'};
     border-radius: 2px;
     transform: ${(props) =>
-      props.isUser ? 'rotate(-45deg)' : 'rotate(45deg)'};
+      props.$isUser ? 'rotate(-45deg)' : 'rotate(45deg)'};
   }
 `;
 
@@ -650,7 +649,7 @@ const TherapistApp: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [lastResponses, setLastResponses] = useState<string[]>([]);
+
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -671,22 +670,7 @@ const TherapistApp: React.FC = () => {
     mouseY.set(e.clientY);
   };
 
-  // Improved fallback responses with more variety and depth
-  const fallbackResponses = [
-    "I understand that must be challenging. Could you tell me more about how that's affecting you?",
-    "It sounds like you're going through a lot right now. What aspects of this situation feel most difficult?",
-    'I appreciate you sharing that with me. Have you noticed any patterns in when these feelings arise?',
-    "That's completely valid to feel that way. What strategies have helped you cope with similar situations before?",
-    "I hear you, and it's okay to feel this way. What kind of support would be most helpful for you right now?",
-    'Finding meaning is so important. What kinds of activities have made you feel fulfilled in the past?',
-    'When you think about a meaningful life, what specific elements come to mind?',
-    'It takes courage to explore these questions. What values are most important to you that might guide your search for meaning?',
-    "Purpose often emerges from connecting our strengths with others' needs. What are you naturally good at?",
-    'Many people find meaning through creative expression, connection with others, or contributing to something larger than themselves. Does any of these resonate with you?',
-    'What would a day filled with meaning look like for you? Even imagining it can help us chart a path forward.',
-    "Small steps toward meaning can make a big difference. What's one tiny action you could take this week?",
-    "The search for meaning is deeply personal. What activities make you lose track of time when you're doing them?",
-  ];
+
 
   // Auto-scroll chat to the bottom when new messages arrive
   useEffect(() => {
@@ -737,8 +721,11 @@ const TherapistApp: React.FC = () => {
     try {
       // Initialize AudioContext if not already created
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+        const AudioContextClass = window.AudioContext || 
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContextRef.current = new AudioContextClass();
+        }
       }
 
       // Get user media
@@ -818,48 +805,15 @@ const TherapistApp: React.FC = () => {
       setMessages((prev) => [...prev, userMessage]);
 
       // Get AI response with conversation history
-      let aiResponseData;
-      try {
-        // Enhanced contextual prompt that includes conversation style guidance
-        const enhancedContext = [
-          ...conversationHistory.map((item) => item.user || ''),
-          ...conversationHistory.map((item) => item.ai || ''),
-          "The AI should respond as a warm, empathetic therapist having a natural conversation. Use varied language, avoid repetitive patterns, and engage authentically with specific details from the user's messages.",
-        ];
-
-        aiResponseData = await generateResponse(
-          transcribedText,
-          enhancedContext
-        );
-
-        // Verify the response doesn't exactly match previous responses
-        const lastAIResponses = messages
-          .filter((m) => !m.isUser)
-          .slice(-3)
-          .map((m) => m.text);
-
-        // If we got a duplicate response, try again with more guidance
-        if (lastAIResponses.includes(aiResponseData.response)) {
-          // Add more specific guidance to avoid repetition
-          enhancedContext.push(
-            'Please provide a completely different response style than before. Be specific and personalized.'
-          );
-          aiResponseData = await generateResponse(
-            transcribedText,
-            enhancedContext
-          );
-        }
-      } catch (apiError) {
-        console.error('API error:', apiError);
-        // Use enhanced fallback response system when API fails
-        aiResponseData = {
-          response: generateLocalAIResponse(transcribedText, messages),
-        };
-      }
+      const aiResponseText = await generateResponse(
+        transcribedText,
+        undefined,
+        conversationHistory
+      );
 
       const aiMessage: Message = {
         id: Date.now().toString() + 1,
-        text: aiResponseData.response,
+        text: aiResponseText,
         isUser: false,
         timestamp: new Date(),
       };
@@ -867,7 +821,7 @@ const TherapistApp: React.FC = () => {
       setMessages((prev) => [...prev, aiMessage]);
 
       // Save conversation to history
-      saveConversationToHistory(transcribedText, aiResponseData.response);
+          saveConversationToHistory(transcribedText, aiResponseText);
     } catch (error) {
       console.error('Error processing audio:', error);
       setError(
@@ -897,42 +851,15 @@ const TherapistApp: React.FC = () => {
       setInputText('');
 
       // Get AI response with conversation history
-      let aiResponseData;
-      try {
-        // Enhanced contextual prompt that includes conversation style guidance
-        const enhancedContext = [
-          ...conversationHistory.map((item) => item.user || ''),
-          ...conversationHistory.map((item) => item.ai || ''),
-          "The AI should respond as a warm, empathetic therapist having a natural conversation. Use varied language, avoid repetitive patterns, and engage authentically with specific details from the user's messages.",
-        ];
-
-        aiResponseData = await generateResponse(currentText, enhancedContext);
-
-        // Verify the response doesn't exactly match previous responses
-        const lastAIResponses = messages
-          .filter((m) => !m.isUser)
-          .slice(-3)
-          .map((m) => m.text);
-
-        // If we got a duplicate response, try again with more guidance
-        if (lastAIResponses.includes(aiResponseData.response)) {
-          // Add more specific guidance to avoid repetition
-          enhancedContext.push(
-            'Please provide a completely different response style than before. Be specific and personalized.'
-          );
-          aiResponseData = await generateResponse(currentText, enhancedContext);
-        }
-      } catch (apiError) {
-        console.error('API error:', apiError);
-        // Use enhanced fallback response system when API fails
-        aiResponseData = {
-          response: generateLocalAIResponse(currentText, messages),
-        };
-      }
+      const aiResponseText = await generateResponse(
+        currentText,
+        undefined,
+        conversationHistory
+      );
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: aiResponseData.response,
+        text: aiResponseText,
         isUser: false,
         timestamp: new Date(),
       };
@@ -940,7 +867,7 @@ const TherapistApp: React.FC = () => {
       setMessages((prev) => [...prev, aiMessage]);
 
       // Save conversation to history
-      saveConversationToHistory(currentText, aiResponseData.response);
+      saveConversationToHistory(currentText, aiResponseText);
     } catch (error) {
       console.error('Error sending message:', error);
       setError(
@@ -978,6 +905,7 @@ const TherapistApp: React.FC = () => {
                 id: `history-user-${index}`,
                 text: item.user,
                 isUser: true,
+                timestamp: new Date(),
               });
             }
             if (item.ai) {
@@ -985,6 +913,7 @@ const TherapistApp: React.FC = () => {
                 id: `history-ai-${index}`,
                 text: item.ai,
                 isUser: false,
+                timestamp: new Date(),
               });
             }
             return msgs;
@@ -1013,173 +942,7 @@ const TherapistApp: React.FC = () => {
     localStorage.setItem('conversationHistory', JSON.stringify(updatedHistory));
   };
 
-  // Enhanced local AI response generation with personality and context awareness
-  const generateLocalAIResponse = (
-    userMessage: string,
-    messageHistory: Message[]
-  ): string => {
-    // Personality traits for the AI therapist
-    const personalityTraits = {
-      warmth: [
-        'I appreciate you sharing that with me',
-        'Thank you for opening up',
-        "I'm glad you felt comfortable telling me this",
-      ],
-      empathy: [
-        'That sounds really challenging',
-        'I can imagine that might feel overwhelming',
-        "It makes sense that you'd feel that way",
-      ],
-      curiosity: [
-        'Could you tell me more about that?',
-        'What was that experience like for you?',
-        'How did you feel when that happened?',
-      ],
-      support: [
-        "You're showing a lot of courage",
-        "You've dealt with this remarkably well",
-        'It takes strength to face these feelings',
-      ],
-      guidance: [
-        'Have you considered trying...',
-        'Sometimes what helps in situations like this is...',
-        'One approach that might be helpful...',
-      ],
-    };
 
-    // Get last few user messages for context
-    const recentUserMessages = messageHistory
-      .filter((m) => m.isUser)
-      .slice(-3)
-      .map((m) => m.text.toLowerCase());
-
-    // Add current message
-    recentUserMessages.push(userMessage.toLowerCase());
-
-    // Check for specific topics or emotional content
-    const hasMeaningTopic = recentUserMessages.some(
-      (msg) =>
-        msg.includes('meaning') ||
-        msg.includes('purpose') ||
-        msg.includes('point')
-    );
-
-    const hasAnxietyTopic = recentUserMessages.some(
-      (msg) =>
-        msg.includes('anx') ||
-        msg.includes('worry') ||
-        msg.includes('stress') ||
-        msg.includes('overwhelm')
-    );
-
-    const hasDepressionTopic = recentUserMessages.some(
-      (msg) =>
-        msg.includes('depress') ||
-        msg.includes('sad') ||
-        msg.includes('down') ||
-        msg.includes('hopeless')
-    );
-
-    const hasRelationshipTopic = recentUserMessages.some(
-      (msg) =>
-        msg.includes('relationship') ||
-        msg.includes('partner') ||
-        msg.includes('friend') ||
-        msg.includes('family') ||
-        msg.includes('parent') ||
-        msg.includes('child')
-    );
-
-    // Choose response elements based on message content
-    let responseParts = [];
-
-    // Add personality element (empathy, warmth)
-    if (hasDepressionTopic || hasAnxietyTopic) {
-      responseParts.push(
-        personalityTraits.empathy[
-          Math.floor(Math.random() * personalityTraits.empathy.length)
-        ]
-      );
-    } else {
-      responseParts.push(
-        personalityTraits.warmth[
-          Math.floor(Math.random() * personalityTraits.warmth.length)
-        ]
-      );
-    }
-
-    // Add specific content based on detected topic
-    if (hasMeaningTopic) {
-      const meaningResponses = [
-        'Finding meaning often comes from connecting with what truly matters to you. What activities or relationships make you feel most alive?',
-        'Many people find that meaning emerges when they align their actions with their core values. What values are most important to you?',
-        'Sometimes meaning comes through the impact we have on others. Have you had experiences where you felt your actions made a positive difference?',
-      ];
-      responseParts.push(
-        meaningResponses[Math.floor(Math.random() * meaningResponses.length)]
-      );
-    } else if (hasAnxietyTopic) {
-      const anxietyResponses = [
-        'When anxiety is present, grounding techniques can be helpful. Have you tried focusing on your five senses to bring yourself back to the present moment?',
-        'Anxiety often involves worrying about future uncertainties. What specific worries have been on your mind lately?',
-        "Sometimes anxiety can be reduced by breaking overwhelming situations into smaller, manageable steps. What's one small step you might take?",
-      ];
-      responseParts.push(
-        anxietyResponses[Math.floor(Math.random() * anxietyResponses.length)]
-      );
-    } else if (hasDepressionTopic) {
-      const depressionResponses = [
-        'Depression can make everything feel more difficult. Are there any small activities that have brought you even momentary relief?',
-        "When we're feeling down, our thinking often becomes more negative and self-critical. Have you noticed any patterns in your thoughts?",
-        'Taking care of your basic needs becomes especially important when dealing with depression. How have you been managing self-care?',
-      ];
-      responseParts.push(
-        depressionResponses[
-          Math.floor(Math.random() * depressionResponses.length)
-        ]
-      );
-    } else if (hasRelationshipTopic) {
-      const relationshipResponses = [
-        'Relationships can be both fulfilling and challenging. What aspects of this relationship are most important to you?',
-        'Sometimes tensions in relationships reflect different needs or communication styles. Have you been able to express your needs in this situation?',
-        "Finding balance between your needs and others' needs can be complicated. How do you typically navigate these kinds of situations?",
-      ];
-      responseParts.push(
-        relationshipResponses[
-          Math.floor(Math.random() * relationshipResponses.length)
-        ]
-      );
-    } else {
-      // General therapeutic responses for other topics
-      const generalResponses = [
-        "I'm curious to understand more about your experience. Could you share what that's been like for you?",
-        'Thank you for bringing this up. These kinds of conversations can be really valuable. What do you feel would be most helpful to explore further?',
-        "I'm hearing that this is important to you. What would you like to focus on as we continue talking?",
-        "That's an interesting perspective. How long have you been thinking about this?",
-        'I appreciate you sharing that with me. What do you feel is the most challenging aspect of this situation?',
-      ];
-      responseParts.push(
-        generalResponses[Math.floor(Math.random() * generalResponses.length)]
-      );
-    }
-
-    // Add a follow-up question or supportive statement to encourage continued conversation
-    const followUps = [
-      ...personalityTraits.curiosity,
-      "I'm here to listen whenever you want to talk more about this.",
-      "Please feel free to share more whenever you're ready.",
-      'What other thoughts or feelings are coming up for you around this?',
-    ];
-
-    // Only add follow-up if response isn't already too long
-    if (responseParts.join(' ').length < 150) {
-      responseParts.push(
-        followUps[Math.floor(Math.random() * followUps.length)]
-      );
-    }
-
-    return responseParts.join(' ');
-  };
 
   return (
     <AppContainer onMouseMove={handleMouseMove}>
@@ -1244,12 +1007,12 @@ const TherapistApp: React.FC = () => {
             <ChatContainer ref={chatContainerRef}>
               <AnimatePresence>
                 {messages.map((message) => (
-                  <MessageContainer key={message.id} isUser={message.isUser}>
-                    <Avatar isUser={message.isUser}>
+                  <MessageContainer key={message.id} $isUser={message.isUser}>
+                    <Avatar $isUser={message.isUser}>
                       {message.isUser ? 'You' : 'AI'}
                     </Avatar>
                     <MessageBubble
-                      isUser={message.isUser}
+                      $isUser={message.isUser}
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.3 }}>
