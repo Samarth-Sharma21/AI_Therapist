@@ -227,15 +227,7 @@ const GoodStuffTitle = styled.h2`
   text-fill-color: transparent;
 `;
 
-const FeaturesSection = styled.section`
-  padding: 5rem 0;
-  background-color: #f8f9fa;
-  position: relative;
-  z-index: 1;
-  border-radius: 20px;
-  margin-top: 3rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-`;
+
 
 const SectionTitle = styled.h2`
   text-align: center;

@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
@@ -9,7 +8,7 @@ import { motion } from "framer-motion";
 
 function App() {
   return (
-    <Router>
+    <Router basename="/AI_Therapist">
       <div className="app-wrapper">
         <Navbar />
         <motion.div

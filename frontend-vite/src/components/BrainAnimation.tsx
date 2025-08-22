@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef } from "react";
+import * as THREE from "three";
 import { Canvas, useFrame } from '@react-three/fiber';
 import {
   OrbitControls,
-  useGLTF,
   MeshDistortMaterial,
   Sphere,
 } from '@react-three/drei';
@@ -44,7 +44,7 @@ const Brain = () => {
 
 // Animated particles around the brain
 const Particles = () => {
-  const particles = Array.from({ length: 100 }).map((_, i) => {
+  const particles = Array.from({ length: 100 }).map(() => {
     // Random positions within a spherical boundary
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);

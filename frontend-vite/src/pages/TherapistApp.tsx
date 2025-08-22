@@ -10,7 +10,7 @@ import {
   transcribeAudio,
   generateResponse,
 } from '../services/api';
-import Footer from '../components/Footer';
+
 
 // 3D Wave animation component
 const WaveCanvas = () => {
@@ -1123,8 +1123,6 @@ const TherapistApp: React.FC = () => {
         </TherapySection>
       </MainContent>
 
-      {/* Footer that adjusts with content */}
-      <Footer />
     </AppContainer>
   );
 };

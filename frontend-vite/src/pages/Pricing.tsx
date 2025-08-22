@@ -40,7 +40,11 @@ const PlansContainer = styled.div`
   }
 `;
 
-const PlanCard = styled(motion.div)`
+interface PlanCardProps {
+  featured?: boolean;
+}
+
+const PlanCard = styled(motion.div)<PlanCardProps>`
   background: white;
   border-radius: 8px;
   padding: 2rem;
@@ -114,7 +118,11 @@ const FeaturesList = styled.ul`
   }
 `;
 
-const PricingButton = styled(Link)`
+interface PricingButtonProps {
+  primary?: boolean;
+}
+
+const PricingButton = styled(Link)<PricingButtonProps>`
   display: inline-block;
   background-color: ${(props) => (props.primary ? '#3a3a7e' : 'transparent')};
   color: ${(props) => (props.primary ? 'white' : '#3a3a7e')};
@@ -205,7 +213,7 @@ const Pricing: React.FC = () => {
               <li>Text-based conversation history (7 days)</li>
               <li>Web access only</li>
             </FeaturesList>
-            <PricingButton to='/app' primary='true'>
+            <PricingButton to='/app' primary={true}>
               Get Started
             </PricingButton>
           </PlanCard>
@@ -231,7 +239,7 @@ const Pricing: React.FC = () => {
               <li>Mobile and web access</li>
               <li>Progress tracking</li>
             </FeaturesList>
-            <PricingButton to='/app' primary='true'>
+            <PricingButton to='/app' primary={true}>
               Try Free for 7 Days
             </PricingButton>
           </PlanCard>

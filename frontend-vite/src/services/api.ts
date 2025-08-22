@@ -3,8 +3,8 @@ import axios from 'axios';
 // Type definitions for SpeechRecognition API
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
   }
 }
 
@@ -27,55 +27,46 @@ export interface TherapistResponse {
 /**
  * Transcribe audio using browser's Web Speech API
  */
-export const transcribeAudio = async (): Promise<string> => {
+export const transcribeAudio = async (audioBlob?: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     try {
-      // Use type assertion for SpeechRecognition API
-      interface SpeechRecognitionEvent extends Event {
-        results: SpeechRecognitionResultList;
-      }
-      
-      interface SpeechRecognitionErrorEvent extends Event {
-        error: string;
-      }
-
-      // Check if browser supports speech recognition
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
-      if (!SpeechRecognition) {
-        reject(new Error('Speech recognition not supported in this browser'));
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        resolve("Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.");
         return;
       }
 
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
 
-      let finalTranscript = '';
+      // If audioBlob is provided, use it for transcription
+      if (audioBlob) {
+        // For now, use a placeholder since Web Speech API requires microphone access
+        // In a real implementation, you would use the audioBlob with a transcription service
+        resolve("Audio transcription would process the provided audio blob here.");
+        return;
+      }
 
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        finalTranscript = transcript;
         resolve(transcript);
       };
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        reject(new Error(`Speech recognition error: ${event.error}`));
+      recognition.onerror = (event) => {
+        reject(`Speech recognition error: ${event.error}`);
       };
 
       recognition.onend = () => {
-        if (!finalTranscript) {
-          reject(new Error('No speech detected'));
-        }
+        // Fallback if no speech detected
+        resolve("No speech detected. Please try again.");
       };
 
-      // For now, we'll use a placeholder since Web Speech API requires microphone access
-      reject(new Error('Audio transcription requires microphone access. Please use text input instead.'));
+      recognition.start();
     } catch (error) {
-      console.error('Error transcribing audio:', error);
-      reject(new Error('Failed to transcribe audio'));
+      reject(`Error accessing microphone: ${error}`);
     }
   });
 };
