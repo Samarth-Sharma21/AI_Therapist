@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatService, ChatSession } from '../services/chatService';
 import { useAuth } from '../contexts/AuthContext';
+import LoadingState from './LoadingState';
+import ErrorBoundary from './ErrorBoundary';
 
 const Container = styled.div`
   background-color: white;
@@ -149,7 +151,7 @@ const EmptyState = styled.div`
   }
 `;
 
-const LoadingState = styled.div`
+const CustomLoadingState = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -195,15 +197,40 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
   const loadSessions = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const { data, error } = await chatService.getSessions();
       
       if (error) {
-        setError(error.message);
+        console.error('Error loading sessions:', error);
+        setError(error.message || 'Failed to load chat sessions');
+        
+        // Try to load from cache if available
+        const cachedSessions = localStorage.getItem('cached_chat_sessions');
+        if (cachedSessions) {
+          try {
+            const parsed = JSON.parse(cachedSessions);
+            setSessions(parsed);
+            setError('Using cached data. Check your connection.');
+            return;
+          } catch (cacheError) {
+            console.warn('Failed to parse cached sessions:', cacheError);
+          }
+        }
+        
+        setSessions([]);
       } else {
         setSessions(data || []);
+        
+        // Cache the sessions for offline access
+        if (data && data.length > 0) {
+          localStorage.setItem('cached_chat_sessions', JSON.stringify(data));
+        }
       }
     } catch (err: any) {
+      console.error('Exception loading sessions:', err);
       setError(err.message || 'Failed to load chat sessions');
+      setSessions([]);
     } finally {
       setLoading(false);
     }
@@ -327,27 +354,59 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
   if (loading) {
     return (
       <Container>
-        <LoadingState>Loading chat sessions...</LoadingState>
+        <LoadingState message="Loading your chat sessions..." size="medium" variant="spinner" />
       </Container>
     );
   }
+
+  const handleRefresh = async () => {
+    await loadSessions();
+  };
 
   return (
     <Container>
       <Header>
         <Title>Chat History</Title>
-        <NewChatButton
-          onClick={handleNewChat}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}>
-          + New Chat
-        </NewChatButton>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <NewChatButton
+            onClick={handleNewChat}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}>
+            + New Chat
+          </NewChatButton>
+          {error && (
+            <motion.button
+              onClick={handleRefresh}
+              style={{
+                background: '#f98e54',
+                color: 'white',
+                border: 'none',
+                padding: '0.6rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}>
+              ↻
+            </motion.button>
+          )}
+        </div>
       </Header>
       
       <SessionsList>
         {error && (
-          <div style={{ color: '#e74c3c', textAlign: 'center', padding: '1rem' }}>
-            {error}
+          <div style={{ 
+            color: '#e74c3c', 
+            textAlign: 'center', 
+            padding: '1rem',
+            background: 'rgba(231, 76, 60, 0.1)',
+            borderRadius: '8px',
+            margin: '0.5rem 0'
+          }}>
+            <strong>Error:</strong> {error}
+            <br />
+            <small>Try refreshing or check your connection</small>
           </div>
         )}
         

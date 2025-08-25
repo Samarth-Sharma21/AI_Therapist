@@ -6,9 +6,18 @@ import {
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Landing from "./pages/Landing";
+import Features from "./pages/Features";
+import About from "./pages/About";
 import Pricing from "./pages/Pricing";
 import TherapistApp from "./pages/TherapistApp";
 import AuthPage from "./pages/AuthPage";
+import Careers from "./pages/Careers";
+import Contact from "./pages/Contact";
+import Blog from "./pages/Blog";
+import Help from "./pages/Help";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { motion } from "framer-motion";
@@ -114,28 +123,23 @@ function AppContent() {
             {/* Static Pages */}
             <Route
               path="/features"
-              element={
-                <div className="page-container text-center">
-                  <h1>Features Page</h1>
-                  <p>
-                    This page is coming soon. Check back later for a detailed
-                    look at all our features.
-                  </p>
-                </div>
-              }
+              element={<Features />}
             />
             <Route
               path="/about"
-              element={
-                <div className="page-container text-center">
-                  <h1>About Us</h1>
-                  <p>
-                    This page is coming soon. Check back later to learn more
-                    about our mission and team.
-                  </p>
-                </div>
-              }
+              element={<About />}
             />
+
+            {/* Footer Pages */}
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            
+            {/* Protected Routes */}
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* 404 Route */}
             <Route

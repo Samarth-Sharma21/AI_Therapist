@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { dataValidators, sanitizeData } from '../utils/validation';
+import { sessionCache, messageCache, localStorageCache } from '../utils/cache';
 
 export interface ChatSession {
   id: string;
@@ -52,23 +54,92 @@ export const chatService = {
     }
   },
 
-  async getSessions(): Promise<{ data: ChatSession[] | null; error: any }> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { data: null, error: { message: 'User not authenticated' } };
+  async getSessions(options: { limit?: number; offset?: number; useCache?: boolean } = {}): Promise<{ data: ChatSession[] | null; error: any }> {
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+    const { limit = 50, offset = 0, useCache = true } = options;
+
+    // Create cache key based on parameters
+    const cacheKey = `sessions_${offset}_${limit}`;
+
+    // Try to get from cache first
+    if (useCache && offset === 0) {
+      const cached = sessionCache.get(cacheKey);
+      if (cached) {
+        return { data: cached, error: null };
       }
-
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('last_message_at', { ascending: false });
-
-      return { data, error };
-    } catch (error) {
-      return { data: null, error };
     }
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // First, try to get sessions with last_message_at ordering
+        let { data, error } = await supabase
+          .from('chat_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('last_message_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        // If last_message_at doesn't exist or causes issues, fallback to created_at
+        if (error && error.message.includes('last_message_at')) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('chat_sessions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+          
+          if (!fallbackError && fallbackData) {
+            // Ensure last_message_at has a value for each session
+            const processedData = fallbackData.map(session => ({
+              ...session,
+              last_message_at: session.last_message_at || session.created_at
+            }));
+            
+            const validatedData = sanitizeData.chatSessions(processedData);
+            if (useCache && offset === 0) {
+              sessionCache.set(cacheKey, validatedData);
+              localStorageCache.set('cached_chat_sessions', validatedData, 30 * 60 * 1000);
+            }
+            return { data: validatedData, error: null };
+          }
+          
+          return { data: fallbackData, error: fallbackError };
+        }
+
+        // Validate and sanitize session data
+        if (data) {
+          const validatedData = sanitizeData.chatSessions(data);
+          if (useCache && offset === 0) {
+            sessionCache.set(cacheKey, validatedData);
+            localStorageCache.set('cached_chat_sessions', validatedData, 30 * 60 * 1000);
+          }
+          return { data: validatedData, error: null };
+        }
+
+        return { data: [], error: null };
+      } catch (error) {
+        if (attempt === maxRetries) {
+          console.error('Failed to load sessions after', maxRetries, 'attempts:', error);
+          // Try to return cached data on error
+          const cached = localStorageCache.get('cached_chat_sessions');
+          if (cached) {
+            return { data: cached, error: null };
+          }
+          return { data: null, error };
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+    
+    return { data: null, error: { message: 'Failed to load sessions' } };
   },
 
   async getSession(sessionId: string): Promise<{ data: ChatSession | null; error: any }> {
@@ -132,24 +203,71 @@ export const chatService = {
   },
 
   // Message Management
-  async getMessages(sessionId: string): Promise<{ data: ChatMessage[] | null; error: any }> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { data: null, error: { message: 'User not authenticated' } };
+  async getMessages(sessionId: string, options: { limit?: number; offset?: number; useCache?: boolean } = {}): Promise<{ data: ChatMessage[] | null; error: any }> {
+    const maxRetries = 3;
+    const retryDelay = 800; // 800ms
+    const { limit = 100, offset = 0, useCache = true } = options;
+
+    // Create cache key based on session and parameters
+    const cacheKey = `messages_${sessionId}_${offset}_${limit}`;
+
+    // Try to get from cache first
+    if (useCache && offset === 0) {
+      const cached = messageCache.get(cacheKey);
+      if (cached) {
+        return { data: cached, error: null };
       }
-
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('session_id', sessionId)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-
-      return { data, error };
-    } catch (error) {
-      return { data: null, error };
     }
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Validate sessionId
+        if (!sessionId || typeof sessionId !== 'string') {
+          return { data: null, error: { message: 'Invalid session ID' } };
+        }
+
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .range(offset, offset + limit - 1);
+
+        if (error) {
+          console.warn(`Attempt ${attempt} failed for getMessages:`, error);
+          if (attempt === maxRetries) {
+            return { data: null, error };
+          }
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+          continue;
+        }
+
+        // Validate and sanitize message data
+        if (data) {
+          const validatedData = sanitizeData.chatMessages(data);
+          if (useCache && offset === 0) {
+            messageCache.set(cacheKey, validatedData);
+          }
+          return { data: validatedData, error: null };
+        }
+
+        return { data: [], error: null };
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed with exception:`, error);
+        if (attempt === maxRetries) {
+          return { data: null, error: { message: 'Failed to load messages after multiple attempts' } };
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+    
+    return { data: null, error: { message: 'Failed to load messages' } };
   },
 
   async addMessage(sessionId: string, content: string, isUserMessage: boolean = true): Promise<{ data: ChatMessage | null; error: any }> {

@@ -221,9 +221,20 @@ You are not alone, and help is available.`;
     }
 
     return aiResponse;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating response from OpenRouter:', error);
-    throw new Error('Unable to generate therapeutic response. Please check your internet connection and try again.');
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please check your OpenRouter API key in the .env.local file and ensure it is valid and has sufficient credits.');
+    } else if (error.response?.status === 402) {
+      throw new Error('Insufficient credits. Please add more credits to your OpenRouter account.');
+    } else if (error.response?.status === 429) {
+      throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+    } else if (error.response?.status === 503) {
+      throw new Error('Service temporarily unavailable. Please try again in a few moments.');
+    } else {
+      throw new Error('Unable to generate therapeutic response. Please check your internet connection and try again.');
+    }
   }
 };
 

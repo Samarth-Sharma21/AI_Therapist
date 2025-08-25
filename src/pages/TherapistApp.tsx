@@ -122,10 +122,14 @@ const AppContainer = styled.div`
   @media (max-width: 768px) {
     flex-direction: column;
   }
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
 `;
 
 // Sidebar for chat sessions
-const Sidebar = styled(motion.div)`
+const Sidebar = styled(motion.div)<{ $isOpen?: boolean }>`
   width: 350px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -136,10 +140,68 @@ const Sidebar = styled(motion.div)`
   z-index: 2;
   
   @media (max-width: 768px) {
-    width: 100%;
-    height: 200px;
-    border-right: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: ${props => props.$isOpen ? '0' : '-350px'};
+    height: 100vh;
+    width: 280px;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: ${props => props.$isOpen ? '2px 0 10px rgba(0,0,0,0.1)' : 'none'};
+  }
+  
+  @media (max-width: 480px) {
+    width: 100vw;
+    left: ${props => props.$isOpen ? '0' : '-100vw'};
+  }
+`;
+
+// Mobile overlay
+const MobileOverlay = styled.div<{ $isOpen: boolean }>`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: ${props => props.$isOpen ? 'block' : 'none'};
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+`;
+
+// Mobile hamburger button
+const MobileMenuButton = styled.button`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    background: rgba(249, 142, 84, 0.9);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    z-index: 1001;
+    box-shadow: 0 4px 15px rgba(249, 142, 84, 0.3);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.05);
+    }
+    
+    svg {
+      width: 24px;
+      height: 24px;
+    }
   }
 `;
 
@@ -164,6 +226,16 @@ const TherapySection = styled(motion.div)`
   position: relative;
   z-index: 1;
   perspective: 1000px;
+  
+  @media (max-width: 768px) {
+    padding: 1rem;
+    margin-top: 80px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    margin-top: 80px;
+  }
 `;
 
 // Card container for main content with 3D movement
@@ -363,6 +435,26 @@ const VoiceBubble = styled(motion.button)<{ isListening: boolean }>`
     width: 40px;
     height: 40px;
     color: white;
+  }
+  
+  @media (max-width: 768px) {
+    width: 120px;
+    height: 120px;
+    
+    svg {
+      width: 32px;
+      height: 32px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    width: 100px;
+    height: 100px;
+    
+    svg {
+      width: 28px;
+      height: 28px;
+    }
   }
 `;
 
@@ -617,6 +709,7 @@ const TherapistApp: React.FC = () => {
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -681,27 +774,98 @@ const TherapistApp: React.FC = () => {
   // Load messages when session changes
   useEffect(() => {
     const loadMessages = async () => {
-      if (currentSession) {
+      if (currentSession && currentSession.id) {
         setLoadingMessages(true);
+        setError(null);
+        
         try {
           const { data, error } = await chatService.getMessages(currentSession.id);
+          
           if (error) {
             console.error('Error loading messages:', error);
+            setError('Failed to load messages. Please try again.');
+            
+            // Try to load from session storage cache
+            const cacheKey = `messages_${currentSession.id}`;
+            const cachedMessages = sessionStorage.getItem(cacheKey);
+            if (cachedMessages) {
+              try {
+                const parsed = JSON.parse(cachedMessages);
+                setMessages(parsed);
+                setError('Using cached messages. Check your connection.');
+                return;
+              } catch (cacheError) {
+                console.warn('Failed to parse cached messages:', cacheError);
+              }
+            }
+            
+            setMessages([]);
           } else {
-            setMessages(data || []);
+            const validMessages = data || [];
+            setMessages(validMessages);
+            
+            // Cache messages for better performance
+            if (validMessages.length > 0) {
+              sessionStorage.setItem(
+                `messages_${currentSession.id}`,
+                JSON.stringify(validMessages)
+              );
+            }
           }
         } catch (err) {
           console.error('Error loading messages:', err);
+          setError('Failed to load messages. Please refresh the page.');
+          setMessages([]);
         } finally {
           setLoadingMessages(false);
         }
       } else {
         setMessages([]);
+        setError(null);
       }
     };
 
     loadMessages();
   }, [currentSession?.id]);
+
+  // Load last active session on component mount
+  useEffect(() => {
+    const loadLastSession = async () => {
+      // First check if there's a session ID in sessionStorage (persists on refresh)
+      let lastSessionId = sessionStorage.getItem('current_session_id');
+      
+      // Fallback to localStorage if sessionStorage is empty
+      if (!lastSessionId) {
+        lastSessionId = localStorage.getItem('last_active_session');
+      }
+      
+      if (lastSessionId) {
+        try {
+          const { data: sessionData, error } = await chatService.getSession(lastSessionId);
+          if (!error && sessionData) {
+            setCurrentSession(sessionData);
+            // Always store in both for better persistence
+            sessionStorage.setItem('current_session_id', sessionData.id);
+            localStorage.setItem('last_active_session', sessionData.id);
+          } else {
+            console.log('Session not found, creating new one');
+            // If session doesn't exist, create a new one
+            await handleNewChat();
+          }
+        } catch (err) {
+          console.error('Error loading last session:', err);
+          await handleNewChat();
+        }
+      } else {
+        // No last session, create a new one
+        await handleNewChat();
+      }
+    };
+
+    if (user) {
+      loadLastSession();
+    }
+  }, [user]);
 
   // Session management functions
   const handleSessionSelect = async (sessionId: string) => {
@@ -711,9 +875,15 @@ const TherapistApp: React.FC = () => {
         console.error('Error loading session:', error);
       } else {
         setCurrentSession(data);
+        // Persist the selected session in both storages for better persistence
+        sessionStorage.setItem('current_session_id', sessionId);
+        localStorage.setItem('last_active_session', sessionId);
+        setSidebarOpen(false); // Close sidebar on mobile
       }
     } else {
       setCurrentSession(null);
+      sessionStorage.removeItem('current_session_id');
+      localStorage.removeItem('last_active_session');
     }
   };
 
@@ -728,6 +898,10 @@ const TherapistApp: React.FC = () => {
       } else if (data) {
         setCurrentSession(data);
         setMessages([]);
+        // Persist the new session
+        sessionStorage.setItem('current_session_id', data.id);
+        localStorage.setItem('last_active_session', data.id);
+        setSidebarOpen(false); // Close sidebar on mobile
       }
     } catch (err) {
       console.error('Error creating new chat:', err);
@@ -907,7 +1081,24 @@ const TherapistApp: React.FC = () => {
     <AppContainer onMouseMove={handleMouseMove}>
       <WaveCanvas />
       
+      {/* Mobile Hamburger Menu Button */}
+      <MobileMenuButton onClick={() => setSidebarOpen(!sidebarOpen)}>
+        {sidebarOpen ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 6L6 18M6 6l12 12" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M3 12h18M3 6h18M3 18h18" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </MobileMenuButton>
+
+      {/* Mobile Overlay */}
+      <MobileOverlay $isOpen={sidebarOpen} onClick={() => setSidebarOpen(false)} />
+      
       <Sidebar
+        $isOpen={sidebarOpen}
         initial={{ x: -350 }}
         animate={{ x: 0 }}
         transition={{ duration: 0.5 }}>
@@ -948,6 +1139,12 @@ const TherapistApp: React.FC = () => {
 
               {loadingMessages && (
                 <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    style={{ display: 'inline-block', marginRight: '0.5rem' }}>
+                    ⟳
+                  </motion.div>
                   Loading messages...
                 </div>
               )}

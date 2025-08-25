@@ -29,8 +29,17 @@ const NavContainer = styled.nav`
   }
 
   @media (max-width: 768px) {
-    width: 85%;
+    width: calc(100% - 2rem);
     padding: 0.8rem 1.5rem;
+    top: 1rem;
+    margin: 0 1rem;
+  }
+  
+  @media (max-width: 480px) {
+    width: calc(100% - 1rem);
+    padding: 0.6rem 1rem;
+    top: 0.5rem;
+    margin: 0 0.5rem;
   }
 `;
 
@@ -169,15 +178,22 @@ const MobileMenu = styled(motion.div)`
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: 80px;
-    left: 5%;
-    width: 90%;
+    top: 90px;
+    left: 1rem;
+    right: 1rem;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     padding: 1rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     z-index: 999;
     border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  @media (max-width: 480px) {
+    top: 80px;
+    left: 0.5rem;
+    right: 0.5rem;
   }
 `;
 
@@ -372,6 +388,7 @@ const Navbar: React.FC = () => {
     try {
       await signOut();
       setUserMenuOpen(false);
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -509,7 +526,7 @@ const Navbar: React.FC = () => {
                     
                     <DropdownItem onClick={() => {
                       setUserMenuOpen(false);
-                      // Navigate to profile page when implemented
+                      window.location.href = '/profile';
                     }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -533,12 +550,12 @@ const Navbar: React.FC = () => {
               <AuthButtons>
                 <AuthButton 
                   $variant="secondary"
-                  onClick={() => window.location.href = '/AI_Therapist/auth'}>
+                  onClick={() => window.location.href = '/auth'}>
                   Sign In
                 </AuthButton>
                 <AuthButton 
                   $variant="primary"
-                  onClick={() => window.location.href = '/AI_Therapist/auth'}>
+                  onClick={() => window.location.href = '/auth'}>
                   Sign Up
                 </AuthButton>
               </AuthButtons>
