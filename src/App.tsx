@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
@@ -9,21 +14,23 @@ import Footer from "./components/Footer";
 import { motion } from "framer-motion";
 
 // Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#f8f9fa'
-      }}>
-        <div style={{ color: '#303064', fontSize: '1.2rem' }}>
-          Loading...
-        </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f8f9fa",
+        }}
+      >
+        <div style={{ color: "#303064", fontSize: "1.2rem" }}>Loading...</div>
       </div>
     );
   }
@@ -41,16 +48,16 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#f8f9fa'
-      }}>
-        <div style={{ color: '#303064', fontSize: '1.2rem' }}>
-          Loading...
-        </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f8f9fa",
+        }}
+      >
+        <div style={{ color: "#303064", fontSize: "1.2rem" }}>Loading...</div>
       </div>
     );
   }
@@ -77,33 +84,33 @@ function AppContent() {
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/pricing" element={<Pricing />} />
-            
+
             {/* Auth Route - redirect to app if already authenticated */}
-            <Route 
-              path="/auth" 
+            <Route
+              path="/auth"
               element={
                 <PublicRoute>
                   <AuthPage />
                 </PublicRoute>
-              } 
+              }
             />
-            
+
             {/* Redirect common auth paths to /auth */}
             <Route path="/signin" element={<Navigate to="/auth" replace />} />
             <Route path="/signup" element={<Navigate to="/auth" replace />} />
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             <Route path="/register" element={<Navigate to="/auth" replace />} />
-            
+
             {/* Protected Routes */}
-            <Route 
-              path="/app" 
+            <Route
+              path="/app"
               element={
                 <ProtectedRoute>
                   <TherapistApp />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
+
             {/* Static Pages */}
             <Route
               path="/features"
@@ -129,7 +136,7 @@ function AppContent() {
                 </div>
               }
             />
-            
+
             {/* 404 Route */}
             <Route
               path="*"
