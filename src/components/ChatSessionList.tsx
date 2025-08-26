@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatService, ChatSession } from '../services/chatService';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingState from './LoadingState';
-import ErrorBoundary from './ErrorBoundary';
 
 const Container = styled.div`
   background-color: white;
@@ -18,7 +17,7 @@ const Container = styled.div`
 
 const Header = styled.div`
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
   gap: 1rem;
@@ -151,14 +150,6 @@ const EmptyState = styled.div`
   }
 `;
 
-const CustomLoadingState = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  color: #666;
-`;
-
 const EditInput = styled.input`
   width: 100%;
   padding: 0.5rem;
@@ -172,6 +163,40 @@ const EditInput = styled.input`
   &:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(249, 142, 84, 0.2);
+  }
+`;
+
+const ErrorState = styled.div`
+  color: #e74c3c; 
+  text-align: center; 
+  padding: 1rem;
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  
+  strong {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  
+  small {
+    display: block;
+    margin-top: 0.5rem;
+  }
+`;
+
+const RefreshButton = styled(motion.button)`
+  background: #f98e54;
+  color: white;
+  border: none;
+  padding: 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
@@ -191,10 +216,13 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
+    if (!user || authLoading) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -204,28 +232,9 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       if (error) {
         console.error('Error loading sessions:', error);
         setError(error.message || 'Failed to load chat sessions');
-        
-        // Try to load from cache if available
-        const cachedSessions = localStorage.getItem('cached_chat_sessions');
-        if (cachedSessions) {
-          try {
-            const parsed = JSON.parse(cachedSessions);
-            setSessions(parsed);
-            setError('Using cached data. Check your connection.');
-            return;
-          } catch (cacheError) {
-            console.warn('Failed to parse cached sessions:', cacheError);
-          }
-        }
-        
         setSessions([]);
       } else {
         setSessions(data || []);
-        
-        // Cache the sessions for offline access
-        if (data && data.length > 0) {
-          localStorage.setItem('cached_chat_sessions', JSON.stringify(data));
-        }
       }
     } catch (err: any) {
       console.error('Exception loading sessions:', err);
@@ -234,22 +243,30 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, authLoading]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       loadSessions();
+    } else if (!authLoading) {
+      // Not authenticated, clear sessions
+      setSessions([]);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading, loadSessions]);
 
   const handleNewChat = async () => {
+    if (creating) return;
+    
     try {
+      setCreating(true);
       const { data, error } = await chatService.createSession({
         title: 'New Chat Session'
       });
       
       if (error) {
         console.error('Error creating session:', error);
+        setError('Failed to create new chat session');
       } else if (data) {
         setSessions(prev => [data, ...prev]);
         onNewChat();
@@ -257,6 +274,9 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       }
     } catch (err) {
       console.error('Error creating new chat:', err);
+      setError('Failed to create new chat session');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -272,6 +292,7 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       
       if (error) {
         console.error('Error deleting session:', error);
+        setError('Failed to delete session');
       } else {
         setSessions(prev => prev.filter(session => session.id !== sessionId));
         
@@ -282,6 +303,7 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       }
     } catch (err) {
       console.error('Error deleting session:', err);
+      setError('Failed to delete session');
     }
   };
 
@@ -304,6 +326,7 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       
       if (error) {
         console.error('Error updating session:', error);
+        setError('Failed to update session title');
       } else {
         setSessions(prev =>
           prev.map(session =>
@@ -315,6 +338,7 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
       }
     } catch (err) {
       console.error('Error updating session title:', err);
+      setError('Failed to update session title');
     } finally {
       setEditingId(null);
       setEditingTitle('');
@@ -335,33 +359,49 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else if (diffDays === 1) {
+        return 'Yesterday';
+      } else if (diffDays < 7) {
+        return date.toLocaleDateString([], { weekday: 'short' });
+      } else {
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+    } catch {
+      return 'Recently';
     }
   };
 
-  if (loading) {
+  const handleRefresh = () => {
+    setError(null);
+    loadSessions();
+  };
+
+  if (authLoading) {
     return (
       <Container>
-        <LoadingState message="Loading your chat sessions..." size="medium" variant="spinner" />
+        <LoadingState message="Initializing..." size="medium" variant="spinner" />
       </Container>
     );
   }
 
-  const handleRefresh = async () => {
-    await loadSessions();
-  };
+  if (!user) {
+    return (
+      <Container>
+        <EmptyState>
+          <h3>Please sign in</h3>
+          <p>Sign in to view your chat sessions.</p>
+        </EmptyState>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -370,47 +410,33 @@ const ChatSessionList: React.FC<ChatSessionListProps> = ({
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <NewChatButton
             onClick={handleNewChat}
+            disabled={creating}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}>
-            + New Chat
+            {creating ? '...' : '+ New Chat'}
           </NewChatButton>
           {error && (
-            <motion.button
+            <RefreshButton
               onClick={handleRefresh}
-              style={{
-                background: '#f98e54',
-                color: 'white',
-                border: 'none',
-                padding: '0.6rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.9rem'
-              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}>
               ↻
-            </motion.button>
+            </RefreshButton>
           )}
         </div>
       </Header>
       
       <SessionsList>
         {error && (
-          <div style={{ 
-            color: '#e74c3c', 
-            textAlign: 'center', 
-            padding: '1rem',
-            background: 'rgba(231, 76, 60, 0.1)',
-            borderRadius: '8px',
-            margin: '0.5rem 0'
-          }}>
+          <ErrorState>
             <strong>Error:</strong> {error}
-            <br />
             <small>Try refreshing or check your connection</small>
-          </div>
+          </ErrorState>
         )}
-        
-        {sessions.length === 0 && !error ? (
+
+        {loading ? (
+          <LoadingState message="Loading your chat sessions..." size="medium" variant="spinner" />
+        ) : sessions.length === 0 && !error ? (
           <EmptyState>
             <h3>No chat sessions yet</h3>
             <p>Start your first conversation by clicking "New Chat" above.</p>

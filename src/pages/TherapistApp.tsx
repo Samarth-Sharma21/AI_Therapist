@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import {
   motion,
@@ -567,6 +567,26 @@ const WelcomeMessage = styled.div`
   }
 `;
 
+// Loading state for messages
+const MessagesLoadingState = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #666;
+  
+  .spinner {
+    display: inline-block;
+    margin-right: 0.5rem;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
 // Icons components
 const MicrophoneIcon = () => (
   <svg width='40' height='40' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
@@ -697,7 +717,7 @@ interface Message {
 
 // Main TherapistApp component
 const TherapistApp: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
@@ -710,6 +730,7 @@ const TherapistApp: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -772,110 +793,89 @@ const TherapistApp: React.FC = () => {
   }, [isListening]);
 
   // Load messages when session changes
-  useEffect(() => {
-    const loadMessages = async () => {
-      if (currentSession && currentSession.id) {
-        setLoadingMessages(true);
-        setError(null);
-        
-        try {
-          const { data, error } = await chatService.getMessages(currentSession.id);
-          
-          if (error) {
-            console.error('Error loading messages:', error);
-            setError('Failed to load messages. Please try again.');
-            
-            // Try to load from session storage cache
-            const cacheKey = `messages_${currentSession.id}`;
-            const cachedMessages = sessionStorage.getItem(cacheKey);
-            if (cachedMessages) {
-              try {
-                const parsed = JSON.parse(cachedMessages);
-                setMessages(parsed);
-                setError('Using cached messages. Check your connection.');
-                return;
-              } catch (cacheError) {
-                console.warn('Failed to parse cached messages:', cacheError);
-              }
-            }
-            
-            setMessages([]);
-          } else {
-            const validMessages = data || [];
-            setMessages(validMessages);
-            
-            // Cache messages for better performance
-            if (validMessages.length > 0) {
-              sessionStorage.setItem(
-                `messages_${currentSession.id}`,
-                JSON.stringify(validMessages)
-              );
-            }
-          }
-        } catch (err) {
-          console.error('Error loading messages:', err);
-          setError('Failed to load messages. Please refresh the page.');
-          setMessages([]);
-        } finally {
-          setLoadingMessages(false);
-        }
-      } else {
+  const loadMessages = useCallback(async (sessionId: string) => {
+    if (!sessionId) {
+      setMessages([]);
+      return;
+    }
+
+    setLoadingMessages(true);
+    setError(null);
+    
+    try {
+      const { data, error } = await chatService.getMessages(sessionId);
+      
+      if (error) {
+        console.error('Error loading messages:', error);
+        setError('Failed to load messages. Please try again.');
         setMessages([]);
-        setError(null);
+      } else {
+        setMessages(data || []);
       }
-    };
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      setError('Failed to load messages. Please refresh the page.');
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
 
-    loadMessages();
-  }, [currentSession?.id]);
-
-  // Load last active session on component mount
   useEffect(() => {
-    const loadLastSession = async () => {
-      // First check if there's a session ID in sessionStorage (persists on refresh)
-      let lastSessionId = sessionStorage.getItem('current_session_id');
-      
-      // Fallback to localStorage if sessionStorage is empty
-      if (!lastSessionId) {
-        lastSessionId = localStorage.getItem('last_active_session');
-      }
-      
-      if (lastSessionId) {
-        try {
+    if (currentSession?.id) {
+      loadMessages(currentSession.id);
+    } else {
+      setMessages([]);
+      setLoadingMessages(false);
+    }
+  }, [currentSession?.id, loadMessages]);
+
+  // Initialize session management - only load last session once
+  useEffect(() => {
+    if (!user || authLoading || sessionInitialized) return;
+
+    const initializeSession = async () => {
+      try {
+        // Check for last active session
+        const lastSessionId = sessionStorage.getItem('current_session_id') ||
+                             localStorage.getItem('last_active_session');
+        
+        if (lastSessionId) {
           const { data: sessionData, error } = await chatService.getSession(lastSessionId);
           if (!error && sessionData) {
             setCurrentSession(sessionData);
-            // Always store in both for better persistence
             sessionStorage.setItem('current_session_id', sessionData.id);
             localStorage.setItem('last_active_session', sessionData.id);
           } else {
-            console.log('Session not found, creating new one');
-            // If session doesn't exist, create a new one
-            await handleNewChat();
+            // Session doesn't exist or error, clear invalid references
+            sessionStorage.removeItem('current_session_id');
+            localStorage.removeItem('last_active_session');
           }
-        } catch (err) {
-          console.error('Error loading last session:', err);
-          await handleNewChat();
         }
-      } else {
-        // No last session, create a new one
-        await handleNewChat();
+      } catch (err) {
+        console.error('Error initializing session:', err);
+        // Clear invalid session references
+        sessionStorage.removeItem('current_session_id');
+        localStorage.removeItem('last_active_session');
+      } finally {
+        setSessionInitialized(true);
       }
     };
 
-    if (user) {
-      loadLastSession();
-    }
-  }, [user]);
+    initializeSession();
+  }, [user, authLoading, sessionInitialized]);
 
   // Session management functions
-  const handleSessionSelect = async (sessionId: string) => {
+  const handleSessionSelect = useCallback(async (sessionId: string) => {
+    if (sessionId === currentSession?.id) return; // Avoid reloading same session
+    
     if (sessionId) {
       const { data, error } = await chatService.getSession(sessionId);
       if (error) {
         console.error('Error loading session:', error);
+        setError('Failed to load session');
       } else {
         setCurrentSession(data);
-        // Persist the selected session in both storages for better persistence
         sessionStorage.setItem('current_session_id', sessionId);
         localStorage.setItem('last_active_session', sessionId);
         setSidebarOpen(false); // Close sidebar on mobile
@@ -885,9 +885,9 @@ const TherapistApp: React.FC = () => {
       sessionStorage.removeItem('current_session_id');
       localStorage.removeItem('last_active_session');
     }
-  };
+  }, [currentSession?.id]);
 
-  const handleNewChat = async () => {
+  const handleNewChat = useCallback(async () => {
     try {
       const { data, error } = await chatService.createSession({
         title: 'New Chat Session'
@@ -895,18 +895,19 @@ const TherapistApp: React.FC = () => {
       
       if (error) {
         console.error('Error creating session:', error);
+        setError('Failed to create new session');
       } else if (data) {
         setCurrentSession(data);
         setMessages([]);
-        // Persist the new session
         sessionStorage.setItem('current_session_id', data.id);
         localStorage.setItem('last_active_session', data.id);
         setSidebarOpen(false); // Close sidebar on mobile
       }
     } catch (err) {
       console.error('Error creating new chat:', err);
+      setError('Failed to create new session');
     }
-  };
+  }, []);
 
   // Start listening/recording function
   const handleStartListening = async () => {
@@ -992,6 +993,7 @@ const TherapistApp: React.FC = () => {
   const addMessageAndGetResponse = async (messageText: string) => {
     try {
       setIsProcessing(true);
+      setError(null);
 
       // Create session if none exists
       let sessionToUse = currentSession;
@@ -1006,6 +1008,10 @@ const TherapistApp: React.FC = () => {
         
         sessionToUse = data;
         setCurrentSession(data);
+        if (data) {
+          sessionStorage.setItem('current_session_id', data.id);
+          localStorage.setItem('last_active_session', data.id);
+        }
       }
 
       if (!sessionToUse) {
@@ -1073,6 +1079,20 @@ const TherapistApp: React.FC = () => {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: '#f8f9fa',
+      }}>
+        <div style={{ color: '#303064', fontSize: '1.2rem' }}>Loading...</div>
+      </div>
+    );
+  }
+
   if (!user) {
     return null; // Protected route should handle this
   }
@@ -1127,7 +1147,7 @@ const TherapistApp: React.FC = () => {
             </Header>
 
             <ChatContainer ref={chatContainerRef}>
-              {!currentSession && (
+              {!currentSession && !loadingMessages && (
                 <WelcomeMessage>
                   <h2>Welcome to TherHappy! 👋</h2>
                   <p>
@@ -1138,15 +1158,10 @@ const TherapistApp: React.FC = () => {
               )}
 
               {loadingMessages && (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    style={{ display: 'inline-block', marginRight: '0.5rem' }}>
-                    ⟳
-                  </motion.div>
+                <MessagesLoadingState>
+                  <span className="spinner">⟳</span>
                   Loading messages...
-                </div>
+                </MessagesLoadingState>
               )}
 
               <AnimatePresence>
