@@ -8,99 +8,150 @@ import ErrorBoundary from '../components/ErrorBoundary';
 
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 120px 20px 40px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 140px 20px 60px;
   display: flex;
   align-items: center;
   justify-content: center;
+  
+  @media (max-width: 768px) {
+    padding: 120px 15px 40px;
+  }
 `;
 
 const ProfileCard = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 24px;
-  padding: 40px;
-  max-width: 600px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 32px;
+  padding: 50px;
+  max-width: 700px;
   width: 100%;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08);
   text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  @media (max-width: 768px) {
+    padding: 30px;
+    border-radius: 24px;
+  }
 `;
 
 const Avatar = styled.div`
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   background: linear-gradient(135deg, #303064, #f98e54);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 20px;
-  font-size: 3rem;
+  margin: 0 auto 30px;
+  font-size: 3.5rem;
   color: white;
   font-weight: bold;
+  box-shadow: 0 15px 30px rgba(48, 48, 100, 0.2);
+  
+  @media (max-width: 768px) {
+    width: 120px;
+    height: 120px;
+    font-size: 3rem;
+    margin-bottom: 25px;
+  }
 `;
 
 const UserName = styled.h1`
-  font-size: 2rem;
+  font-size: 2.5rem;
   color: #303064;
-  margin: 0 0 10px 0;
+  margin: 0 0 15px 0;
+  font-weight: 700;
+  background: linear-gradient(135deg, #303064, #f98e54);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const UserEmail = styled.p`
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: #666;
-  margin: 0 0 30px 0;
+  margin: 0 0 40px 0;
+  font-weight: 500;
+  
+  @media (max-width: 768px) {
+    font-size: 1.1rem;
+    margin-bottom: 35px;
+  }
 `;
 
 const Section = styled.div`
   text-align: left;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  
+  &:last-of-type {
+    margin-bottom: 20px;
+  }
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   color: #303064;
-  margin: 0 0 15px 0;
-  border-bottom: 2px solid #f98e54;
-  padding-bottom: 5px;
+  margin: 0 0 20px 0;
+  font-weight: 600;
+  border-bottom: 3px solid #f98e54;
+  padding-bottom: 8px;
+  display: inline-block;
 `;
 
 const InfoItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(48, 48, 100, 0.1);
   
   &:last-child {
     border-bottom: none;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 15px 0;
   }
 `;
 
 const InfoLabel = styled.span`
   font-weight: 600;
   color: #303064;
+  font-size: 1rem;
 `;
 
 const InfoValue = styled.span`
   color: #666;
+  font-size: 1rem;
+  font-weight: 500;
+  word-break: break-all;
 `;
 
 const ActionButton = styled(motion.button)`
   background: linear-gradient(135deg, #303064, #f98e54);
   color: white;
   border: none;
-  padding: 15px 30px;
-  border-radius: 12px;
+  padding: 18px 40px;
+  border-radius: 16px;
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
-  margin: 10px;
+  margin: 15px;
   transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(48, 48, 100, 0.2);
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(48, 48, 100, 0.3);
   }
   
   &:disabled {
@@ -108,36 +159,63 @@ const ActionButton = styled(motion.button)`
     cursor: not-allowed;
     transform: none;
   }
+  
+  @media (max-width: 768px) {
+    padding: 15px 30px;
+    margin: 10px;
+    font-size: 1rem;
+  }
 `;
 
 const DangerButton = styled(ActionButton)`
   background: linear-gradient(135deg, #e74c3c, #c0392b);
+  
+  &:hover {
+    box-shadow: 0 12px 30px rgba(231, 76, 60, 0.3);
+  }
 `;
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
-  margin: 20px 0;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 25px;
+  margin: 30px 0;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 `;
 
 const StatCard = styled.div`
-  background: rgba(48, 48, 100, 0.05);
-  padding: 20px;
-  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(48, 48, 100, 0.05), rgba(249, 142, 84, 0.05));
+  padding: 30px 20px;
+  border-radius: 16px;
   text-align: center;
+  border: 1px solid rgba(48, 48, 100, 0.1);
+  backdrop-filter: blur(10px);
+  
+  @media (max-width: 768px) {
+    padding: 25px 15px;
+  }
 `;
 
 const StatNumber = styled.div`
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: bold;
   color: #303064;
+  margin-bottom: 8px;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const StatLabel = styled.div`
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #666;
   margin-top: 5px;
+  font-weight: 500;
 `;
 
 const Profile: React.FC = () => {
@@ -248,7 +326,7 @@ const Profile: React.FC = () => {
             </InfoItem>
           </Section>
 
-          <div style={{ marginTop: '40px' }}>
+          <div style={{ marginTop: '50px', textAlign: 'center' }}>
             <ActionButton 
               onClick={() => navigate('/app')}
               whileHover={{ scale: 1.02 }}

@@ -39,7 +39,7 @@ export const authService = {
             username,
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/chat`,
+          // No email confirmation required
         },
       });
 

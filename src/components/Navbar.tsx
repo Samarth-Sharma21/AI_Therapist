@@ -229,21 +229,26 @@ const UserButton = styled.button`
   background: linear-gradient(135deg, #303064, #f98e54);
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0.625rem;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  width: 45px;
+  height: 45px;
+  font-weight: 700;
+  font-size: 1rem;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(48, 48, 100, 0.2);
   
   &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(249, 142, 84, 0.3);
+    transform: scale(1.08);
+    box-shadow: 0 8px 20px rgba(249, 142, 84, 0.35);
+  }
+  
+  &:active {
+    transform: scale(1.02);
   }
 `;
 
@@ -251,30 +256,34 @@ const UserDropdown = styled(motion.div)`
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 0.5rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  padding: 0.5rem;
-  min-width: 200px;
+  margin-top: 0.75rem;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  padding: 1rem;
+  min-width: 280px;
   z-index: 1000;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(48, 48, 100, 0.1);
 `;
 
 const UserInfo = styled.div`
-  padding: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(48, 48, 100, 0.1);
+  margin-bottom: 0.5rem;
   
   .email {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #303064;
-    font-weight: 500;
-    margin-bottom: 0.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    word-break: break-all;
   }
   
   .name {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     color: #666;
+    font-weight: 500;
   }
 `;
 
@@ -282,28 +291,38 @@ const DropdownItem = styled.button`
   width: 100%;
   background: none;
   border: none;
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 12px;
   transition: all 0.2s ease;
-  color: #333;
-  font-size: 0.9rem;
+  color: #303064;
+  font-size: 0.95rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
   
   &:hover {
-    background-color: rgba(249, 142, 84, 0.1);
+    background: linear-gradient(135deg, rgba(249, 142, 84, 0.08), rgba(48, 48, 100, 0.05));
     color: #f98e54;
+    transform: translateX(2px);
   }
   
   &.danger {
     color: #e74c3c;
     
     &:hover {
-      background-color: rgba(231, 76, 60, 0.1);
+      background: linear-gradient(135deg, rgba(231, 76, 60, 0.08), rgba(231, 76, 60, 0.05));
+      color: #c0392b;
     }
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
   }
 `;
 
@@ -386,11 +405,14 @@ const Navbar: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
       setUserMenuOpen(false);
+      await signOut();
+      // Force page refresh to ensure clean state
       window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even if there's an error, redirect to home page
+      window.location.href = '/';
     }
   };
 
@@ -526,7 +548,10 @@ const Navbar: React.FC = () => {
                     
                     <DropdownItem onClick={() => {
                       setUserMenuOpen(false);
-                      window.location.href = '/profile';
+                      // Use proper navigation instead of window.location
+                      setTimeout(() => {
+                        window.location.href = '/profile';
+                      }, 100);
                     }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>

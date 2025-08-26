@@ -4,13 +4,20 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 
 const FormContainer = styled(motion.div)`
-  background-color: white;
-  border-radius: 20px;
-  padding: 3rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 3.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
+  
+  @media (max-width: 768px) {
+    padding: 2.5rem;
+    border-radius: 20px;
+  }
 `;
 
 const Title = styled.h2`
