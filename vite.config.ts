@@ -21,6 +21,6 @@ export default defineConfig({
     // Prevent environment variables from being bundled
     'process.env': {},
   },
-  // Prevent Vite from replacing env variables in build
-  envPrefix: [],
+  // Allow VITE_ prefixed env variables for development
+  envPrefix: ['VITE_'],
 });

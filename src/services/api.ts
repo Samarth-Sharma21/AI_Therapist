@@ -13,9 +13,11 @@ const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const getOpenRouterConfig = () => {
   return {
     apiKey: (typeof window !== 'undefined' && (window as any).ENV?.VITE_OPENROUTER_API_KEY) || 
+            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_OPENROUTER_API_KEY) || 
             (typeof process !== 'undefined' && process.env?.VITE_OPENROUTER_API_KEY) || 
             '',
     model: (typeof window !== 'undefined' && (window as any).ENV?.VITE_OPENROUTER_MODEL) || 
+           (typeof import.meta !== 'undefined' && import.meta.env?.VITE_OPENROUTER_MODEL) || 
            (typeof process !== 'undefined' && process.env?.VITE_OPENROUTER_MODEL) || 
            ''
   };

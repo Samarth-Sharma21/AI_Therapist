@@ -3,9 +3,11 @@ import { createClient, User } from "@supabase/supabase-js";
 // Get Supabase config at runtime to prevent exposure in build output
 const getSupabaseConfig = () => ({
   url: (typeof window !== 'undefined' && (window as any).ENV?.VITE_SUPABASE_URL) || 
+        (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 
         (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) || 
         '',
   anonKey: (typeof window !== 'undefined' && (window as any).ENV?.VITE_SUPABASE_ANON_KEY) || 
+           (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 
            (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) || 
            '',
 });
