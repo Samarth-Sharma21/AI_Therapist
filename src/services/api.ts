@@ -17,7 +17,7 @@ const getOpenRouterConfig = () => {
             '',
     model: (typeof window !== 'undefined' && (window as any).ENV?.VITE_OPENROUTER_MODEL) || 
            (typeof process !== 'undefined' && process.env?.VITE_OPENROUTER_MODEL) || 
-           'openai/gpt-oss-20b:free'
+           ''
   };
 };
 
@@ -284,6 +284,11 @@ export const generateResponse = async (
   if (!config.apiKey) {
     throw new Error(
       "OpenRouter API key is required. Please configure your API key in .env.local file."
+    );
+  }
+  if (!config.model) {
+    throw new Error(
+      "OpenRouter model is required. Please configure VITE_OPENROUTER_MODEL in .env.local file."
     );
   }
 
