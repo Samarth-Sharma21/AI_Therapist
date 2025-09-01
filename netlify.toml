@@ -1,0 +1,22 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # These will be set in Netlify dashboard, not in code
+  VITE_SUPABASE_URL = ""
+  VITE_SUPABASE_ANON_KEY = ""
+  VITE_OPENROUTER_API_KEY = ""
+  VITE_OPENROUTER_MODEL = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
