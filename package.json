@@ -4,9 +4,10 @@
   "description": "AI-powered therapeutic companion with speech recognition and sentiment analysis",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run inject-env && vite build",
     "preview": "vite preview",
-    "setup": "node setup.js"
+    "setup": "node setup.js",
+    "inject-env": "node scripts/inject-env.js"
   },
   "dependencies": {
     "@react-three/drei": "^9.88.13",
